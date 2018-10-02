@@ -3,5 +3,5 @@ In the assignment, I will analyze the gapminder data some more. My analyses will
 ## Please find below links to my assignment solutions
 * [The Rmarkdown File](https://github.com/STAT545-UBC-students/hw03-ecool50/blob/master/HW_03.Rmd)
 * [The Markdown File](https://github.com/STAT545-UBC-students/hw03-ecool50/blob/master/HW_03.md)
-* [The PDF File]()
+* [The PDF File](https://github.com/STAT545-UBC-students/hw03-ecool50/blob/master/HW_03.pdf)
 
