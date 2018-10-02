@@ -1,0 +1,248 @@
+---
+title: "STAT 545 HW 03"
+author: "Elijah Willie"
+date: "September 30, 2018"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+In this document, I wll attempt a few tasks. First, I will get the maximum and minimum GDP per capita for each continent and make some comments about them. Second, I will look investigate the spread of GDP per capita within each continent and make further comments. Third, I will compute three different types of means, and asses them relatively to each other. I will also provide plots for easier referencing. Lastly, I will, through the use of visual aids, attempt to explore how life expectancy is changing over time for different continents. So lets begin!!
+
+
+## Load in the required libraries
+```{r}
+suppressMessages(library("tidyverse"))
+library(gapminder)
+library(cowplot)
+```
+
+
+## Task 1: Get the maximum and minimum of GDP per capita for all continents.
+```{r}
+#add log10 gdpPercap
+gapminder <- mutate(gapminder, log10GdpPercap =log10(gdpPercap))
+
+#Compute the min and the max GDP per capital for each continent
+my.tab <- summarise(group_by(gapminder, continent), min(log10GdpPercap), max(log10GdpPercap))
+colnames(my.tab) <- c("Continent", "min", "max")
+knitr::kable(my.tab)
+```
+
+We see that Africa has the smallest GDP Per capital amongst all the continents while Oceania has the highest of the minimum GDP per cap for all the continents. We also see that Asia has the highest GDP per cap for all continents and africa has the smallest maximum GDP per cap for all continents.
+
+
+```{r}
+#Show this using some plots
+ggplot(gapminder, aes(continent, log10GdpPercap)) + 
+  geom_point(aes(color = continent),alpha = 0.2) +
+  ggtitle("Scatter plot of log10(GDP per capital) for each continents")
+```
+
+This plot also reiterates what I concluded above.
+
+## Task 2: Look at the spread of GDP per capita within the continents.
+
+To ge the spread of the data, I will use a table first to show the the quartiles, the mean, the mode, the Inter Quartile Range,  and the standard deviation of GDP per cap for each continent
+
+```{r}
+#create a function to get mode of the data
+# Create the function.
+mode <- function(data) {
+  #compute the unique value in the data 
+  t1 <- unique(data)
+  #compute which is the most occuring unize value
+  t1[which.max(tabulate(match(data, t1)))]
+}
+```
+
+
+```{r}
+
+sp.table <- summarize(group_by(gapminder, continent), quantile(log10GdpPercap, 0.25), quantile(log10GdpPercap, 0.5), quantile(log10GdpPercap, 0.75), mean(log10GdpPercap),mode(log10GdpPercap), sd(log10GdpPercap), IQR(log10GdpPercap))
+colnames(sp.table) <- c("Continent", "1st quartile", "Median", "3rd Quartile", "mean", "Mode", "SD", "IQR" )
+knitr::kable(sp.table)
+```
+
+we see that Africa has the smallest variation on GDP per cap amongst all the continents, while Asia has the highest GDP per cap 
+
+We can aslo view this graphically using a box plot
+
+```{r}
+#use ggplot2 to create a boxplot for each continent
+ggplot(gapminder, aes(continent, log10GdpPercap)) + 
+  geom_boxplot(aes(color = continent)) +
+  ggtitle("Box plot of log10(GDP per capital) for each continent")
+```
+
+You can also visualize the spread using a histogram
+
+```{r}
+ggplot(gapminder,aes(x=log10GdpPercap, color=continent))+ 
+  geom_histogram() + 
+  facet_grid(~ continent) + 
+  ggtitle("Histogram of log10(GDP per capital) for each continent")
+
+```
+
+
+## Task 3: Compute a trimmed mean of life expectancy for different years. Or a weighted mean, weighting by population.
+
+### Compute plain mean by year
+```{r}
+#group by year and compute the means just to get a feel for it
+years.mean <- gapminder %>%
+    group_by(year) %>%
+    summarize("Mean" = mean(gdpPercap)) 
+
+#Show the table
+knitr::kable(years.mean)
+```
+
+We can also plot the means by year
+```{r}
+plot1 <- ggplot(years.mean, aes(year, `Mean`)) + 
+  geom_point() + 
+  ggtitle("year vs mean") +
+  geom_smooth(method = "lm", se = TRUE)
+
+#show the plot
+plot1
+```
+
+
+
+### Now that we have the hang of things, compute the trim mean
+
+We trim by $10\%$ so we will be discarding $1704*0.10 = 170$ observations 
+```{r}
+#Do a 10% trimmed mean
+trimmed.means <- gapminder %>%
+    group_by(year) %>%
+    summarize("Trimmed Mean" = mean(gdpPercap, trim = 0.10)) 
+
+#Show the table
+knitr::kable(trimmed.means)
+```
+
+plot the means by year
+```{r}
+plot2 <- ggplot(trimmed.means, aes(year, `Trimmed Mean`)) + 
+  geom_point() + 
+  ggtitle("year vs trimmed mean") +
+  geom_smooth(method = "lm", se = TRUE)
+
+#show the plot
+plot2
+```
+
+
+
+### Now lets get really fancy by computing a weighted mean
+```{r}
+
+#compute the weighted means for year
+weighted.means <- gapminder %>%
+    group_by(year) %>%
+    summarize("Weighted Mean" = weighted.mean(gdpPercap,pop))
+
+#Show the table
+knitr::kable(weighted.means)
+```
+
+plot the means by year
+```{r}
+plot3 <- ggplot(weighted.means, aes(year, `Weighted Mean`)) + 
+  geom_point() + 
+  ggtitle("year vs weighted mean") +
+  geom_smooth(method = "lm", se = TRUE) 
+
+#show the plot
+plot3
+```
+
+### Now put all the plot side by side so it's easier to see
+```{r}
+#use the plot_grid function from th cowplot library to do this
+plot_grid(plot1, plot2,plot3, labels = "AUTO")
+```
+
+Looking at the plots above, we see that we change the trend in the means by weighting it by the poputlation. The mean is closer to a straight line. Also, the mean and the trimmed mean are not too different.
+
+## Task 4: How is life expectancy changing over time on different continents?
+
+Here I will be using chaining and piping to plot life expectancy over time for each continent
+```{r}
+gapminder %>%
+  ggplot(aes(x=year,y=lifeExp,color=continent)) +
+   geom_point() +
+   geom_smooth(method = "lm") + 
+  facet_grid(continent ~ .) +
+  ggtitle("Life expectancy over years for each continent")
+```
+
+It seems that on average, Oceania countries have higher life expectancy compared to other continents. I would however take this with a grain of salt as there is very little data as we can see from the plot above.
+
+## Find countries with interesting stories.
+
+I am interested in looking at Africa as a whole. I am also interested in countries with high life expectancy (>60), and low life expectancy (<40).
+
+### First look at African countries
+
+```{r}
+medLA <- gapminder %>%
+  filter(continent == "Africa") %>%
+  group_by(country) %>%
+  summarise(medLifeExp = median(lifeExp))
+
+#Show the table
+knitr::kable(medLA)
+
+#get the country with max median life expectancy
+knitr::kable(medLA[medLA$medLifeExp == max(medLA$medLifeExp),])
+
+#get the median life expectancy of my country "Liberia"
+knitr::kable(medLA[medLA$country == "Liberia", ])
+```
+
+Wow Renunion has the highest median life expectancy in Africa. I have never heard of this place before. It turns out it is an island eas of madagascar! Thats pretty cool. :smirk: The median life expectancy in my country is pretty low! I guess we have some catching up to do. :muscle:
+
+### Now look at countries with high and low life expectancy
+
+Look at a subset of countries with the lowest and highest median life expectancies.
+```{r}
+
+knitr::kable(filter(medLA,medLifeExp<40))
+knitr::kable(filter(medLA,medLifeExp>60))
+cc = c("Angola","Guinea-Bissau","Sierra Leone",
+       "Mauritius","Reunion","Tunisia",
+       "Mexico") # Mexico for comparison
+```
+
+Plot life expectancy over time. 
+
+```{r}
+gapminder %>%
+  filter(country %in% cc) %>%
+  ggplot(aes(x=year,y=lifeExp,color=country)) +
+   geom_point() +
+   geom_smooth(method = "lm") +
+  ggtitle("Life expectancy over years")
+```
+
+It is quite interesting to see the massive disparity between a set of countries in Africa. I guess the quality of life does play a key role in life expectancy. A few countries have some catching up to do! :pensive:
+
+Just before I finish, here's another interesting plot of life expectancy over time:
+
+```{r}
+gapminder %>%
+  filter(continent == "Oceania") %>%
+  ggplot(aes(x=year,y=lifeExp,color=country)) +
+  geom_point() +
+  geom_smooth(method = "loess", span=3/4)
+```
+
+Hmm What happend in the mid-1970s in Australia? :worried:
